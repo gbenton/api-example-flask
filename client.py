@@ -6,7 +6,8 @@ import requests
 import flask
 from flask import request
 from optparse import OptionParser
-import ConfigParser
+import os
+#import ConfigParser
 
 PORT = 2323
 API_SERVER = "api.23andme.com"
@@ -14,7 +15,8 @@ BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
 DEFAULT_REDIRECT_URI = '%sreceive_code/'  % BASE_CLIENT_URL
 SNPS = ["rs12913832"]
 DEFAULT_SCOPE = "names basic %s" % (" ".join(SNPS))
-CONFIG_FILE = 'config.cfg'
+"""
+CONFIG_FILE = '.env'
 
 config = ConfigParser.ConfigParser()
 config.read(CONFIG_FILE)
@@ -22,6 +24,10 @@ if config.get('API','client_id'):
     CLIENT_ID = config.get('API','client_id')
 if config.get('API','client_secret'):
     CLIENT_SECRET = config.get('API','client_secret')
+"""
+CLIENT_ID = os.environ.get('CLIENT_ID')
+CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
+
 
 parser = OptionParser(usage = "usage: %prog -i CLIENT_ID [options]")
 parser.add_option("-i", "--client_id", dest="client_id",

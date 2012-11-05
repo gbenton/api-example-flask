@@ -3,4 +3,5 @@ local/
 include/
 lib/
 .Python
-config.cfg
+.env
+*.pyc
