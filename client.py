@@ -6,6 +6,7 @@ import requests
 import flask
 from flask import request
 from optparse import OptionParser
+import ConfigParser
 
 PORT = 2323
 API_SERVER = "api.23andme.com"
@@ -13,11 +14,18 @@ BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
 DEFAULT_REDIRECT_URI = '%sreceive_code/'  % BASE_CLIENT_URL
 SNPS = ["rs12913832"]
 DEFAULT_SCOPE = "names basic %s" % (" ".join(SNPS))
-CLIENT_SECRET = None
+CONFIG_FILE = 'config.cfg'
+
+config = ConfigParser.ConfigParser()
+config.read(CONFIG_FILE)
+if config.get('API','client_id'):
+    CLIENT_ID = config.get('API','client_id')
+if config.get('API','client_secret'):
+    CLIENT_SECRET = config.get('API','client_secret')
 
 parser = OptionParser(usage = "usage: %prog -i CLIENT_ID [options]")
 parser.add_option("-i", "--client_id", dest="client_id",
-        help="Your client_id [REQUIRED]", default ='')
+        help="Your client_id [REQUIRED]", default = CLIENT_ID)
 parser.add_option("-s", "--scope", dest="scope",
         help="Your requested scope [%s]" % DEFAULT_SCOPE, default = DEFAULT_SCOPE)
 parser.add_option("-r", "--redirect_uri", dest="redirect_uri",
@@ -64,7 +72,7 @@ def receive_code():
     )
 
     if response.status_code == 200:
-        #print response.JSON
+        print response.json
         access_token, refresh_token = response.json['access_token'], response.json['refresh_token']
         #print "Access token: %s\nRefresh token: %s\n" % (access_token, refresh_token)
 
@@ -73,8 +81,11 @@ def receive_code():
                                          params = {'locations': ' '.join(SNPS)},
                                          headers=headers,
                                          verify=False)
+        name_response = requests.get("%s%s" % (BASE_API_URL, "1/names/"),
+                                         headers=headers,
+                                         verify=False)
         if genotype_response.status_code == 200:
-            return flask.render_template('receive_code.html', response_json = genotype_response.json)
+            return flask.render_template('receive_code.html', response_json = genotype_response.json, name_json = name_response.json)
         else:
             reponse_text = genotype_response.text
             response.raise_for_status()
