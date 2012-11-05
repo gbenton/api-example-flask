@@ -11,7 +11,8 @@ import os
 
 PORT = int(os.environ.get('PORT', 5000))
 API_SERVER = "api.23andme.com"
-BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
+#BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
+BASE_CLIENT_URL = 'http://floating-harbor-6334.herokuapp.com/'
 DEFAULT_REDIRECT_URI = '%sreceive_code/'  % BASE_CLIENT_URL
 SNPS = ["rs12913832"]
 DEFAULT_SCOPE = "names basic %s" % (" ".join(SNPS))
