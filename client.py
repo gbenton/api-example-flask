@@ -9,7 +9,7 @@ from optparse import OptionParser
 import os
 #import ConfigParser
 
-PORT = 2323
+PORT = int(os.environ.get('PORT', 5000))
 API_SERVER = "api.23andme.com"
 BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
 DEFAULT_REDIRECT_URI = '%sreceive_code/'  % BASE_CLIENT_URL
@@ -101,4 +101,4 @@ def receive_code():
 
 if __name__ == '__main__':
     print "A local client for the Personal Genome API is now initialized."
-    app.run(debug=False, port=2323)
+    app.run(debug=False, port=PORT)
