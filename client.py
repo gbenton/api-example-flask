@@ -94,7 +94,7 @@ def receive_code():
         if genotype_response.status_code == 200:
             return flask.render_template('receive_code.html', response_json = genotype_response.json, name_json = name_response.json)
         else:
-            reponse_text = genotype_response.text
+            response_text = genotype_response.text
             response.raise_for_status()
     else:
         response.raise_for_status()
