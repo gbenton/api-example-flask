@@ -28,7 +28,7 @@ DEFAULT_SCOPE = "names basic %s" % (" ".join(SNPS))
 
 CLIENT_ID = os.environ.get('CLIENT_ID')
 CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
-
+APP_SECRET_KEY = os.environ.get('APP_SECRET_KEY')
 
 # For command line launch of app #
 
@@ -68,7 +68,7 @@ def result_interpret(resp):
 
 
 app = flask.Flask(__name__)
-app.secret_key = 'w\x1f\x89\xe9\xc3b\xd2L\xbaP\x98;\xd7\xb6\xe4\xeb4\xf3b\xa0\xc4j\x0b\xe9'
+app.secret_key = APP_SECRET_KEY
 
 @app.route('/')
 def index():
