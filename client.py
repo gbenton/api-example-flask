@@ -1,34 +1,36 @@
 #!/usr/bin/python
 
 import getpass
-import webbrowser
 import requests
 import flask
-from flask import request
+from flask import request, session, redirect, url_for, render_template
+
 from optparse import OptionParser
 import os
 #import ConfigParser
 
 PORT = int(os.environ.get('PORT', 5000))
 API_SERVER = "api.23andme.com"
-#BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
-BASE_CLIENT_URL = 'http://gb-23andme-testapp.herokuapp.com/'
+BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
+#BASE_CLIENT_URL = 'http://gb-23andme-testapp.herokuapp.com/'
 DEFAULT_REDIRECT_URI = '%sreceive_code/'  % BASE_CLIENT_URL
 SNPS = ["rs12913832"]
 DEFAULT_SCOPE = "names basic %s" % (" ".join(SNPS))
-"""
-CONFIG_FILE = '.env'
 
-config = ConfigParser.ConfigParser()
-config.read(CONFIG_FILE)
-if config.get('API','client_id'):
-    CLIENT_ID = config.get('API','client_id')
-if config.get('API','client_secret'):
-    CLIENT_SECRET = config.get('API','client_secret')
-"""
+#CONFIG_FILE = '.env'
+
+#config = ConfigParser.ConfigParser()
+#config.read(CONFIG_FILE)
+#if config.get('API','client_id'):
+#    CLIENT_ID = config.get('API','client_id')
+#if config.get('API','client_secret'):
+#    CLIENT_SECRET = config.get('API','client_secret')
+
 CLIENT_ID = os.environ.get('CLIENT_ID')
 CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
 
+
+# For command line launch of app #
 
 parser = OptionParser(usage = "usage: %prog -i CLIENT_ID [options]")
 parser.add_option("-i", "--client_id", dest="client_id",
@@ -55,23 +57,49 @@ if not CLIENT_SECRET:
     print "Please navigate to your developer dashboard [%sdashboard/] to retrieve your client_secret." % BASE_API_URL
     CLIENT_SECRET = getpass.getpass("Please enter your client_secret:")
 
+
+# App Functions #
+def result_interpret(resp):
+    for p in resp:
+        if p['rs12913832'] == 'AG':
+            return "Het!"
+        else:
+            return "I don't know"
+
+
 app = flask.Flask(__name__)
+app.secret_key = 'w\x1f\x89\xe9\xc3b\xd2L\xbaP\x98;\xd7\xb6\xe4\xeb4\xf3b\xa0\xc4j\x0b\xe9'
 
 @app.route('/')
 def index():
     auth_url = "%sauthorize/?response_type=code&redirect_uri=%s&client_id=%s&scope=%s" % (BASE_API_URL, REDIRECT_URI, CLIENT_ID, DEFAULT_SCOPE)
-    return flask.render_template('index.html', auth_url = auth_url)
+    if 'access_token' in session:
+        return redirect(url_for('results'))
+    else:
+        return render_template('index.html', auth_url = auth_url)
 
 @app.route('/receive_code/')
 def receive_code():
-    parameters = {
-        'client_id': CLIENT_ID,
-        'client_secret': CLIENT_SECRET,
-        'grant_type': 'authorization_code',
-        'code': request.args.get('code'),
-        'redirect_uri': REDIRECT_URI,
-        'scope': DEFAULT_SCOPE
-    }
+    if request.args:
+        parameters = {
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET,
+            'grant_type': 'authorization_code',
+            'code': request.args.get('code'),
+            'redirect_uri': REDIRECT_URI,
+            'scope': DEFAULT_SCOPE
+        }
+
+    else:
+        parameters = {
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET,
+            'grant_type': 'refresh_token',
+            'refresh_token': session['refresh_token'],
+            'redirect_uri': REDIRECT_URI,
+            'scope': DEFAULT_SCOPE
+        }
+
     response = requests.post(
         "%s%s" % (BASE_API_URL, "token/"),
         data = parameters,
@@ -79,25 +107,44 @@ def receive_code():
     )
 
     if response.status_code == 200:
-        print response.json
+        # print response.json
         access_token, refresh_token = response.json['access_token'], response.json['refresh_token']
-        #print "Access token: %s\nRefresh token: %s\n" % (access_token, refresh_token)
+        session['access_token'] = access_token
+        session['refresh_token'] = refresh_token
+        # return "Access token: %s\nRefresh token: %s\nCookie Access: %s\nCookie Refresh: %s\n" % (access_token, refresh_token, session['access_token'], session['refresh_token'])
+        return redirect(url_for('results'))
 
-        headers = {'Authorization': 'Bearer %s' % access_token}
-        genotype_response = requests.get("%s%s" % (BASE_API_URL, "1/genotype/"),
-                                         params = {'locations': ' '.join(SNPS)},
-                                         headers=headers,
-                                         verify=False)
-        name_response = requests.get("%s%s" % (BASE_API_URL, "1/names/"),
-                                         headers=headers,
-                                         verify=False)
-        if genotype_response.status_code == 200:
-            return flask.render_template('receive_code.html', response_json = genotype_response.json, name_json = name_response.json)
-        else:
-            response_text = genotype_response.text
-            response.raise_for_status()
     else:
-        response.raise_for_status()
+        return redirect(url_for('index'))
+
+@app.route('/results/')
+def results():
+    headers = {'Authorization': 'Bearer %s' % session['access_token']}
+    genotype_response = requests.get("%s%s" % (BASE_API_URL, "1/genotype/"),
+                                        params = {'locations': ' '.join(SNPS)},
+                                        headers=headers,
+                                        verify=False)
+
+    if genotype_response.status_code != 200:
+        return redirect(url_for('receive_code'))
+
+    result = result_interpret(genotype_response.json)
+
+    name_response = requests.get("%s%s" % (BASE_API_URL, "1/names/"),
+                                        headers=headers,
+                                        verify=False)
+
+    if genotype_response.status_code == 200:
+        return render_template('landing.html', response_json = genotype_response.json, name_json = name_response.json, result = result)
+    else:
+        return redirect(url_for('receive_code'))
+        # return genotype_response.raise_for_status()
+
+@app.route('/badtoken/') #for testing refresh_token
+def bad_token():
+    session['access_token'] = '3eeefeff47cc3588d8a4979d3fbc56e7'
+    # return redirect(url_for('receive_code'))
+    return redirect(url_for('results'))
 
 
 if __name__ == '__main__':
