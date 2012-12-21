@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Your Combined Results</h1>
+<br>
+<p>Your genetics account for at least __ lbs.</p>
+<p></p>
+<br>
+
+
+<div class="row-fluid show-grid">
+    <div class="span4">4</div>
+    <div class="span4">4</div>
+    <div class="span4">4</div>
+</div>
+<div>
+    {{genotype_json}}
+</div>
+<div>
+    {{runkeeper_json}}
+</div>
+<br>
+<div>
+    {% for p in genotype_json %}
+        <div>rs3751812: {{p.rs3751812}}</div>
+        <div>rs10871777: {{p.rs10871777}}</div>
+        <div>rs3101336: {{p.rs3101336}}</div>
+        <div>rs4788102: {{p.rs4788102}}</div>
+        <div>rs10838738: {{p.rs10838738}}</div>
+        <div>rs13130484: {{p.rs13130484}}</div>
+    {% endfor %}
+</div>
+
+<div>
+    {% for i in rk_items %}
+        <div>{{i.timestamp}}: {{i.weight}}</div>
+    {% endfor %}
+</div>
+
+
+{% endblock %}
