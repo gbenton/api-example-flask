@@ -7,24 +7,14 @@ from flask import request, session, redirect, url_for, render_template
 
 from optparse import OptionParser
 import os
-#import ConfigParser
 
 PORT = int(os.environ.get('PORT', 5000))
 API_SERVER = "api.23andme.com"
-#BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
-BASE_CLIENT_URL = 'http://gb-23andme-testapp.herokuapp.com/'
+BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
+#BASE_CLIENT_URL = 'http://gb-23andme-testapp.herokuapp.com/'
 DEFAULT_REDIRECT_URI = '%sreceive_code/'  % BASE_CLIENT_URL
 SNPS = ["rs12913832"]
 DEFAULT_SCOPE = "names basic %s" % (" ".join(SNPS))
-
-#CONFIG_FILE = '.env'
-
-#config = ConfigParser.ConfigParser()
-#config.read(CONFIG_FILE)
-#if config.get('API','client_id'):
-#    CLIENT_ID = config.get('API','client_id')
-#if config.get('API','client_secret'):
-#    CLIENT_SECRET = config.get('API','client_secret')
 
 CLIENT_ID = os.environ.get('CLIENT_ID')
 CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
@@ -107,11 +97,9 @@ def receive_code():
     )
 
     if response.status_code == 200:
-        # print response.json
         access_token, refresh_token = response.json['access_token'], response.json['refresh_token']
         session['access_token'] = access_token
         session['refresh_token'] = refresh_token
-        # return "Access token: %s\nRefresh token: %s\nCookie Access: %s\nCookie Refresh: %s\n" % (access_token, refresh_token, session['access_token'], session['refresh_token'])
         return redirect(url_for('results'))
 
     else:
@@ -138,13 +126,62 @@ def results():
         return render_template('landing.html', response_json = genotype_response.json, name_json = name_response.json, result = result)
     else:
         return redirect(url_for('receive_code'))
-        # return genotype_response.raise_for_status()
 
 @app.route('/badtoken/') #for testing refresh_token
 def bad_token():
     session['access_token'] = '3eeefeff47cc3588d8a4979d3fbc56e7'
     # return redirect(url_for('receive_code'))
     return redirect(url_for('results'))
+
+#Runkeeper
+
+RK_URL = 'https://runkeeper.com/apps/'
+RK_CLIENT_ID = os.environ.get('RK_CLIENT_ID')
+RK_CLIENT_SECRET = os.environ.get('RK_CLIENT_SECRET')
+RK_REDIRECT_URI = 'http://localhost:5000/receive_rk_code/'
+
+@app.route('/runkeeper/')
+def runkeeper():
+    auth_url = "%sauthorize/?response_type=code&redirect_uri=%s&client_id=%s" % (RK_URL, RK_REDIRECT_URI, RK_CLIENT_ID)
+    return render_template('index.html', auth_url = auth_url)
+
+@app.route('/receive_rk_code/')
+def receive_rk_code():
+    parameters = {
+        'client_id': RK_CLIENT_ID,
+        'client_secret': RK_CLIENT_SECRET,
+        'grant_type': 'authorization_code',
+        'code': request.args.get('code'),
+        'redirect_uri': RK_REDIRECT_URI,
+        }
+
+    response = requests.post(
+        "https://runkeeper.com/apps/token",
+        data = parameters,
+        verify=False
+    )
+
+    if response.status_code == 200:
+        rk_access_token = response.json['access_token']
+        session['rk_access_token'] = rk_access_token
+        return redirect(url_for('get_weight'))
+    else:
+        return redirect(url_for('index'))
+
+@app.route('/get_weight/')
+def get_weight():
+    #headers = {'Authorization': 'Bearer %s' % session['rk_access_token'], 'Accept': 'application/vnd.com.runkeeper.User+json'}
+    #runkeeper_response = requests.get("https://api.runkeeper.com/user/",
+    #                                    headers=headers,
+    #                                    verify=False)
+
+    headers = {'Authorization': 'Bearer %s' % session['rk_access_token'], 'Accept': 'application/vnd.com.runkeeper.WeightSetFeed+json'}
+    runkeeper_response = requests.get("https://api.runkeeper.com/weight/",
+                                        headers=headers,
+                                        verify=False)
+
+    if runkeeper_response.status_code == 200:
+        return "%s" % runkeeper_response.json
 
 
 if __name__ == '__main__':
