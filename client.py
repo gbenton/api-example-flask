@@ -13,7 +13,7 @@ API_SERVER = "api.23andme.com"
 #BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
 BASE_CLIENT_URL = 'http://gb-23andme-testapp.herokuapp.com/'
 DEFAULT_REDIRECT_URI = '%sreceive_code/'  % BASE_CLIENT_URL
-SNPS = ["rs3751812","rs10871777","rs13130484","rs4788102","rs10838738","rs3101336"]
+SNPS = ["rs3751812","rs10871777","rs13130484","rs4788102","rs10838738","rs3101336", "rs925946"]
 DEFAULT_SCOPE = "names basic %s" % (" ".join(SNPS))
 
 CLIENT_ID = os.environ.get('CLIENT_ID')
@@ -77,6 +77,26 @@ if not CLIENT_SECRET:
 #            return "Het!"
 #        else:
 #            return "I don't know"
+
+def obesity(resp):
+    for p in resp:
+        if p['rs925946'] == 'TT':
+            return "slightly higher odds of obesity."
+        elif p['rs925946'] == 'GT':
+            return "typical odds of obesity."
+        else:
+            return "slightly lower odds of obesity."
+
+def convert_to_lbs(weights):
+    kgs = []
+    pounds = []
+    for entry in weights:
+        kgs.insert(0, entry['weight'])
+    for weight in kgs:
+        pounds.insert(0, round((weight*2.20462), 0))
+    return pounds
+
+
 
 app = flask.Flask(__name__)
 app.secret_key = APP_SECRET_KEY
@@ -161,8 +181,9 @@ def bad_token():
 
 @app.route('/runkeeper/')
 def runkeeper():
-    rk_auth_url = "%sauthorize/?response_type=code&redirect_uri=%s&client_id=%s" % (RK_URL, RK_REDIRECT_URI, RK_CLIENT_ID)
-    return render_template('index.html', rk_auth_url = rk_auth_url)
+    #rk_auth_url = "%sauthorize/?response_type=code&redirect_uri=%s&client_id=%s" % (RK_URL, RK_REDIRECT_URI, RK_CLIENT_ID)
+    #return render_template('index.html', rk_auth_url = rk_auth_url)
+    return "delete the cookie"
 
 @app.route('/receive_rk_code/')
 def receive_rk_code():
@@ -194,9 +215,18 @@ def combined_results():
                                         headers=rk_headers,
                                         verify=False)
 
+    rk_fit_headers = {'Authorization': 'Bearer %s' % session['rk_access_token'], 'Accept': 'application/vnd.com.runkeeper.FitnessActivityFeed+json'}
+    runkeeper_fit_response = requests.get("https://api.runkeeper.com/fitnessActivities/",
+                                        headers=rk_fit_headers,
+                                        verify=False)
+
     headers = {'Authorization': 'Bearer %s' % session['access_token']}
     genotype_response = requests.get("%s%s" % (BASE_API_URL, "1/genotype/"),
                                         params = {'locations': " ".join(SNPS)},
+                                        headers=headers,
+                                        verify=False)
+
+    name_response = requests.get("%s%s" % (BASE_API_URL, "1/names/"),
                                         headers=headers,
                                         verify=False)
 
@@ -204,11 +234,15 @@ def combined_results():
         return redirect(url_for('receive_code'))
 
     items = runkeeper_response.json[u'items']
+    fit_items = runkeeper_fit_response.json[u'items']
+    obesity_results = obesity(genotype_response.json)
+    weight_results = convert_to_lbs(items)
+
 
     if runkeeper_response.status_code == 200 and genotype_response.status_code == 200:
         #return "%s"% runkeeper_response.json[u'items'][0][u'weight']
         #return "%s%s" % (runkeeper_response.json, genotype_response.json)
-        return render_template('combined.html', genotype_json = genotype_response.json, rk_items = items)
+        return render_template('combined.html', genotype_json = genotype_response.json, rk_items = items, name_json = name_response.json, obesity_results = obesity_results, weight_results = weight_results, fit_items = fit_items)
 
 
 if __name__ == '__main__':

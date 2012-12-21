@@ -13,6 +13,41 @@
   margin-bottom: 20px;
 }
 
+.nomap [class*="span"] {
+  min-height: 270px;
+}
+
+.map [class*="span"] {
+  background-color: #eee;
+  text-align: center;
+  min-height: 570px;
+  line-height: 20px;
+}
+
+.tiles [class*="span"] {
+  background-color: #eee;
+  text-align: center;
+  min-height: 270px;
+  line-height: 20px;
+}
+
+.tiles {
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.results {
+    margin: 20px 20px 20px 20px;
+    ;
+}
+
+.map [class*="span"] {
+  background-color: #eee;
+  text-align: center;
+  min-height: 570px;
+  line-height: 20px;
+}
+
 body {
     padding-top: 40px;
     padding-bottom: 40px;
