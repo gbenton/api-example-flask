@@ -1,27 +1,14 @@
 {% extends "base.html" %}
 {% block body %}
-<h1> Success! </h1>
-<p>You've retrieved the following genotypes from the api</p>
-<table>
-    <tr>
-        <th scope='col'>profile id</th>
-        <th scope='col'>rs12913832</th>
-    </tr>
-    {% for p in response_json %}
-    <tr>
-        <td>{{p.id}}</td>
-        <td>{{p.rs12913832}}</td>
-    </tr>
-    {% endfor %}
-</table>
-<div>
-    {{response_json}}
+<div class="hero-unit">
+    <h1>{{name_json.first_name}}'s Genetic Weight</h1>
+    <br>
+    <p>Your genes are responsible for ___ BMI units.</p>
+    <p>Most people's brains don't work in BMI units, so let's get some weight and height info from you to make this work better.</p>
+    <br>
+    <p class="center-button"><a class="btn btn-primary btn-large" href="{{rk_auth_url}}">Get My Weight Data from RunKeeper &raquo;</a></p>
 </div>
-<div>{{result}}</div>
-<div style="color:red;">
-    {{name_json.first_name}}
-    {{response_json}}
-    {{name_json}}
-</div>
+
+
 {% endblock %}
 

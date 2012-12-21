@@ -13,12 +13,17 @@ API_SERVER = "api.23andme.com"
 BASE_CLIENT_URL = 'http://localhost:%s/'% PORT
 #BASE_CLIENT_URL = 'http://gb-23andme-testapp.herokuapp.com/'
 DEFAULT_REDIRECT_URI = '%sreceive_code/'  % BASE_CLIENT_URL
-SNPS = ["rs12913832"]
+SNPS = ["rs3751812","rs10871777","rs13130484","rs4788102","rs10838738","rs3101336"]
 DEFAULT_SCOPE = "names basic %s" % (" ".join(SNPS))
 
 CLIENT_ID = os.environ.get('CLIENT_ID')
 CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
 APP_SECRET_KEY = os.environ.get('APP_SECRET_KEY')
+
+RK_URL = 'https://runkeeper.com/apps/'
+RK_CLIENT_ID = os.environ.get('RK_CLIENT_ID')
+RK_CLIENT_SECRET = os.environ.get('RK_CLIENT_SECRET')
+RK_REDIRECT_URI = '%sreceive_rk_code/'% BASE_CLIENT_URL
 
 # For command line launch of app #
 
@@ -49,13 +54,29 @@ if not CLIENT_SECRET:
 
 
 # App Functions #
-def result_interpret(resp):
-    for p in resp:
-        if p['rs12913832'] == 'AG':
-            return "Het!"
-        else:
-            return "I don't know"
 
+#def bmi_from_call(call):
+#        """Given a call string, tabulate the bmi difference."""
+#        return call.count(allele) * bmi
+
+#def genetic_bmi(self):
+#        """Calculates total bmi difference due to SNPs for this profile."""
+#        total_bmi = 0.0
+#        for i,snp in enumerate(self.BMI_SNPS):
+#            total_bmi += snp.bmi_from_call(self.calls[i])
+#        return total_bmi
+
+#def genetic_weight(self, height):
+#        """Given a height, calculate the amount of weight accounted for by SNPs."""
+#        height = int(height)
+#        return (self.genetic_bmi * (height ** 2)) / 703.0
+
+#def result_interpret(resp):
+#    for p in resp:
+#        if p['rs12913832'] == 'AG':
+#            return "Het!"
+#        else:
+#            return "I don't know"
 
 app = flask.Flask(__name__)
 app.secret_key = APP_SECRET_KEY
@@ -109,21 +130,24 @@ def receive_code():
 def results():
     headers = {'Authorization': 'Bearer %s' % session['access_token']}
     genotype_response = requests.get("%s%s" % (BASE_API_URL, "1/genotype/"),
-                                        params = {'locations': ' '.join(SNPS)},
+                                        params = {'locations': " ".join(SNPS)},
                                         headers=headers,
                                         verify=False)
 
     if genotype_response.status_code != 200:
         return redirect(url_for('receive_code'))
 
-    result = result_interpret(genotype_response.json)
+    #result = result_interpret(genotype_response.json)
 
     name_response = requests.get("%s%s" % (BASE_API_URL, "1/names/"),
                                         headers=headers,
                                         verify=False)
 
+    rk_auth_url = "%sauthorize/?response_type=code&redirect_uri=%s&client_id=%s" % (RK_URL, RK_REDIRECT_URI, RK_CLIENT_ID)
+
     if genotype_response.status_code == 200:
-        return render_template('landing.html', response_json = genotype_response.json, name_json = name_response.json, result = result)
+        return render_template('landing.html', response_json = genotype_response.json, name_json = name_response.json, rk_auth_url = rk_auth_url)
+        #return "It's the template stupid"
     else:
         return redirect(url_for('receive_code'))
 
@@ -135,15 +159,10 @@ def bad_token():
 
 #Runkeeper
 
-RK_URL = 'https://runkeeper.com/apps/'
-RK_CLIENT_ID = os.environ.get('RK_CLIENT_ID')
-RK_CLIENT_SECRET = os.environ.get('RK_CLIENT_SECRET')
-RK_REDIRECT_URI = 'http://localhost:5000/receive_rk_code/'
-
 @app.route('/runkeeper/')
 def runkeeper():
-    auth_url = "%sauthorize/?response_type=code&redirect_uri=%s&client_id=%s" % (RK_URL, RK_REDIRECT_URI, RK_CLIENT_ID)
-    return render_template('index.html', auth_url = auth_url)
+    rk_auth_url = "%sauthorize/?response_type=code&redirect_uri=%s&client_id=%s" % (RK_URL, RK_REDIRECT_URI, RK_CLIENT_ID)
+    return render_template('index.html', rk_auth_url = rk_auth_url)
 
 @app.route('/receive_rk_code/')
 def receive_rk_code():
@@ -164,24 +183,32 @@ def receive_rk_code():
     if response.status_code == 200:
         rk_access_token = response.json['access_token']
         session['rk_access_token'] = rk_access_token
-        return redirect(url_for('get_weight'))
+        return redirect(url_for('combined_results'))
     else:
         return redirect(url_for('index'))
 
-@app.route('/get_weight/')
-def get_weight():
-    #headers = {'Authorization': 'Bearer %s' % session['rk_access_token'], 'Accept': 'application/vnd.com.runkeeper.User+json'}
-    #runkeeper_response = requests.get("https://api.runkeeper.com/user/",
-    #                                    headers=headers,
-    #                                    verify=False)
-
-    headers = {'Authorization': 'Bearer %s' % session['rk_access_token'], 'Accept': 'application/vnd.com.runkeeper.WeightSetFeed+json'}
+@app.route('/combined-results/')
+def combined_results():
+    rk_headers = {'Authorization': 'Bearer %s' % session['rk_access_token'], 'Accept': 'application/vnd.com.runkeeper.WeightSetFeed+json'}
     runkeeper_response = requests.get("https://api.runkeeper.com/weight/",
+                                        headers=rk_headers,
+                                        verify=False)
+
+    headers = {'Authorization': 'Bearer %s' % session['access_token']}
+    genotype_response = requests.get("%s%s" % (BASE_API_URL, "1/genotype/"),
+                                        params = {'locations': " ".join(SNPS)},
                                         headers=headers,
                                         verify=False)
 
-    if runkeeper_response.status_code == 200:
-        return "%s" % runkeeper_response.json
+    if genotype_response.status_code != 200:
+        return redirect(url_for('receive_code'))
+
+    items = runkeeper_response.json[u'items']
+
+    if runkeeper_response.status_code == 200 and genotype_response.status_code == 200:
+        #return "%s"% runkeeper_response.json[u'items'][0][u'weight']
+        #return "%s%s" % (runkeeper_response.json, genotype_response.json)
+        return render_template('combined.html', genotype_json = genotype_response.json, rk_items = items)
 
 
 if __name__ == '__main__':

@@ -1,10 +1,14 @@
 {% extends "base.html" %}
 {% block title %}
-Welcome to the 23andMe API example client
+The Genetic Dashboard
 {% endblock %}
 
 {% block body %}
-<h1>Welcome to the 23andme example client</h1>
-<p>This demo will take you through the basic authentication flow</p>
-<p><a href="{{auth_url}}">Click here</a> to authorize this client to access your genetics. After authorizing the application, you will be forwarded back to this application with a code that displays</p>
+<div class="hero-unit">
+    <h1>Your Genetic Dashboard</h1>
+    <br>
+    <p>Your Genetic Dashboard combines your genetic data with all of your other health data and presents the most relevant information in a single place. We'll start by having you log into 23andMe so we can retrieve genetic data about your BMI.</p>
+    <br>
+    <p class="center-button"><a class="btn btn-success btn-large" href="{{auth_url}}">Get My Genetic BMI Data &raquo;</a></p>
+</div>
 {% endblock %}
