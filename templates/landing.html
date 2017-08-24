@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block body %}
 <div class="hero-unit">
-    <h1>{{name_json.first_name}}'s Genetic Weight</h1>
+    <h1>{{name_json.data.0.first_name}}'s Genetic Weight</h1>
+    <p>name json = {{name_json}}<p>
+    <p>genetics? = {{response_json}}<p>
     <br>
     <p>We've got your genetic data, but your dashboard will work even better with some more information.</p>
     <br>
